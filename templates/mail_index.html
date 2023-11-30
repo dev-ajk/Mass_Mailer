@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Mass-Mail Dispatcher</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        /* Combined CSS from both styles.css and styles2.css */
+        body {
+            background-color: #f8f9fa;
+        }
+
+        .card {
+            width: 100%;
+            margin: 0;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-header {
+            background-color: #007bff;
+            color: #fff;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        .card-body {
+            padding: 30px;
+        }
+
+        .form-group label {
+            font-weight: bold;
+        }
+
+        .btn-primary {
+            background-color: #007bff;
+            border-color: #007bff;
+        }
+
+        .btn-primary:hover {
+            background-color: #0056b3;
+            border-color: #0056b3;
+        }
+
+        .list-group {
+            margin-top: 10px;
+            height: 239px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            padding: 10px;
+        }
+
+        .list-group-item {
+            border-radius: 0;
+        }
+
+        /* Custom styles for dividing into columns */
+        .row {
+            display: flex;
+            flex-wrap: wrap;
+            margin-right: -5px;
+            /* Reduce the default gutter space */
+            margin-left: -5px;
+            /* Reduce the default gutter space */
+        }
+
+        .col-md-6.left-column {
+            flex: 0 0 45%; /* Decrease width of the left column */
+            max-width: 45%; /* Decrease width of the left column */
+            padding-right: 5px;
+            /* Adjust the gutter space */
+            padding-left: 5px;
+            /* Adjust the gutter space */
+        }
+
+        .col-md-6.right-column {
+            flex: 0 0 55%; /* Increase width of the right column */
+            max-width: 55%; /* Increase width of the right column */
+            padding-right: 5px;
+            /* Adjust the gutter space */
+            padding-left: 5px;
+            /* Adjust the gutter space */
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container-fluid mt-5 px-5">
+        <div class="card">
+            <h2 class="card-header text-center">Mass-Mail Dispatcher</h2>
+            <div class="card-body">
+                <div class="row">
+
+                    <!-- Left Column for Composing Email -->
+                    <div class="col-md-6 left-column">
+                        <!-- Content for left column -->
+                        <div class="card">
+                            <h4 class="card-header text-center">Compose Email</h4>
+                            <div class="card-body">
+                                <form id="composeForm">
+                                    <div class="form-group">
+                                        <label for="to">From:</label>
+                                        <input type="email" class="form-control" id="to"
+                                            placeholder="Enter sender's email addresses">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="subject">Subject:</label>
+                                        <input type="text" class="form-control" id="subject"
+                                            placeholder="Enter email subject">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="message">Message:</label>
+                                        <textarea class="form-control" id="message" rows="6"
+                                            placeholder="Compose your email"></textarea>
+                                    </div>
+                                    <button type="button" class="btn btn-primary btn-block"
+                                        onclick="sendEmail()"><h5><b>Send</b></h5></button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column for Uploading CSV -->
+                    <div class="col-md-6 right-column">
+                        <!-- Content for right column -->
+                        <div class="card">
+                            <h4 class="card-header text-center">File Uploading</h4>
+                            <div class="card-body">
+                                <form id="uploadForm">
+                                    <div class="form-group">
+                                        <label for="csvFile"><h4><b>Upload CSV File:</b></h4></label>
+                                        <input type="file" class="form-control-file" id="csvFile" accept=".csv">
+                                    </div>
+                                    <button type="button" class="btn btn-primary btn-block"
+                                        onclick="uploadCSV()">Upload</button>
+                                </form>
+                                <div class="row mt-4">
+                                    <div class="col-md-6">
+                                        <h5>Detected Valid Emails (<span id="validCount">0</span>):</h5>
+                                        <div id="validEmailsList" class="email-list list-group"></div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h5>Detected Invalid Emails (<span id="invalidCount">0</span>):</h5>
+                                        <div id="invalidEmailsList" class="email-list list-group"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Your existing HTML and CSS code -->
+
+    <script>
+        function uploadCSV() {
+            const fileInput = document.getElementById('csvFile');
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function (event) {
+                const content = event.target.result;
+
+                // Split content by line breaks to get individual email entries
+                const emails = content.split(/\r\n|\n/);
+
+                const validEmails = [];
+                const invalidEmails = [];
+                const knownTLDs = ["com", "net", "org", "edu", "gov", "in"]; // Add more TLDs as needed
+
+                const emailRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+
+                emails.forEach((email) => {
+                    // Trim whitespace and validate each email with regex and known TLDs
+                    const trimmedEmail = email.trim();
+                    if (emailRegex.test(trimmedEmail)) {
+                        const domainParts = trimmedEmail.split('.');
+                        const tld = domainParts[domainParts.length - 1];
+                        if (knownTLDs.includes(tld)) {
+                            validEmails.push(trimmedEmail);
+                        } else {
+                            invalidEmails.push(trimmedEmail);
+                        }
+                    } else if (trimmedEmail !== '') {
+                        invalidEmails.push(trimmedEmail);
+                    }
+                });
+
+                // Display valid and invalid emails in respective divs
+                document.getElementById('validEmailsList').innerHTML = validEmails.join('<br>');
+                document.getElementById('invalidEmailsList').innerHTML = invalidEmails.join('<br>');
+
+                // Update the count of valid and invalid emails
+                document.getElementById('validCount').textContent = validEmails.length;
+                document.getElementById('invalidCount').textContent = invalidEmails.length;
+            };
+
+            reader.readAsText(file); // Read file as text
+        }
+
+        function sendEmail() {
+            // Your email sending logic here
+            const fromEmail = document.getElementById('to').value;
+            const subject = document.getElementById('subject').value;
+            const message = document.getElementById('message').value;
+
+            // Retrieve the valid emails from the right column
+            const validEmails = document.getElementById('validEmailsList').innerText.split('\n');
+
+            // Make a POST request to the Flask server
+            fetch('/pass', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    from_email: fromEmail,
+                    subject: subject,
+                    message: message,
+                    valid_emails: validEmails
+                })
+            }).then(response => {
+                if (response.ok) {
+                    alert('Emails sent successfully!');
+                } else {
+                    console.error('Error sending data.');
+                }
+            }).catch(error => {
+                console.error('Error:', error);
+            });
+        }
+    </script>
+
+</body>
+
+</html>
